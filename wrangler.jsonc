@@ -37,5 +37,20 @@
         }
       ]
     },
+    "local": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "crow-core-pattern-service-db-local",
+          "database_id": "9d9eea51-36a5-442d-ac99-b59d2878709c"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "R2_BUCKET",
+          "bucket_name": "crow-core-pattern-service-store-local"
+        }
+      ]
+    },
   },
 }
