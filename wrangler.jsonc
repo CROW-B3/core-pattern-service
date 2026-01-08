@@ -21,8 +21,14 @@
       "bucket_name": "crow-core-pattern-service-store"
     }
   ],
+  "routes": [
+    { "pattern": "patterns.crowai.dev", "custom_domain": true }
+  ],
   "env": {
     "dev": {
+      "routes": [
+        { "pattern": "dev.patterns.crowai.dev", "custom_domain": true }
+      ],
       "d1_databases": [
         {
           "binding": "DB",
