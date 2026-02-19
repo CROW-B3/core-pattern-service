@@ -2,28 +2,39 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "crow-core-pattern-service",
   "account_id": "8f0203259905d8923687286c84921e6c",
-  "main": "src/index.ts",
+  "main": "src/worker.ts",
   "compatibility_date": "2025-12-17",
-  "observability": {
-    "enabled": true,
-    "head_sampling_rate": 1,
+  "compatibility_flags": ["nodejs_compat"],
+  "containers": [
+    {
+      "class_name": "PatternAnalyzerContainer",
+      "image": "./Dockerfile",
+      "max_instances": 2
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "class_name": "PatternAnalyzerContainer", "name": "PATTERN_CONTAINER" }
+    ]
   },
-  "vars": {
-    "ENVIRONMENT": "prod",
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["PatternAnalyzerContainer"] }
+  ],
+  "triggers": {
+    "crons": ["0 2 * * *", "0 3 * * 1", "0 4 1 * *", "0 5 1 1 *"]
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "crow-core-pattern-service-db",
-      "database_id": "372a8110-1d3a-44cf-9727-2b25d124fbc1"
+      "database_id": "372a8110-1d3a-44cf-9727-2b25d124fbc1",
+      "migrations_dir": "drizzle/migrations"
     }
   ],
-  "r2_buckets": [
-    {
-      "binding": "R2_BUCKET",
-      "bucket_name": "crow-core-pattern-service-store"
-    }
-  ],
+  "vars": {
+    "ENVIRONMENT": "local",
+    "API_GATEWAY_URL": "http://localhost:8000"
+  },
   "routes": [
     { "pattern": "patterns.crowai.dev", "custom_domain": true }
   ],
@@ -31,41 +42,19 @@
     "dev": {
       "vars": {
         "ENVIRONMENT": "dev",
+        "API_GATEWAY_URL": "https://dev.api.crowai.dev"
       },
-      "routes": [
-        { "pattern": "dev.patterns.crowai.dev", "custom_domain": true }
-      ],
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "crow-core-pattern-service-db-dev",
-          "database_id": "38e42261-df6f-43a4-872f-068b9f4a4329"
+          "database_id": "38e42261-df6f-43a4-872f-068b9f4a4329",
+          "migrations_dir": "drizzle/migrations"
         }
       ],
-      "r2_buckets": [
-        {
-          "binding": "R2_BUCKET",
-          "bucket_name": "crow-core-pattern-service-store-dev"
-        }
+      "routes": [
+        { "pattern": "dev.patterns.crowai.dev", "custom_domain": true }
       ]
-    },
-    "local": {
-      "vars": {
-        "ENVIRONMENT": "local",
-      },
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_name": "crow-core-pattern-service-db-local",
-          "database_id": "9d9eea51-36a5-442d-ac99-b59d2878709c"
-        }
-      ],
-      "r2_buckets": [
-        {
-          "binding": "R2_BUCKET",
-          "bucket_name": "crow-core-pattern-service-store-local"
-        }
-      ]
-    },
-  },
+    }
+  }
 }
