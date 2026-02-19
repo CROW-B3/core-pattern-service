@@ -1,19 +1,16 @@
-# Build stage
-FROM oven/bun:1 AS builder
-
+# Stage 1: Builder
+FROM python:3.12-slim AS builder
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /app
+COPY pyproject.toml .
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --no-editable
 
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
-
-COPY . ./
-
-RUN bun build src/index.ts --compile --outfile server
-
-FROM debian:bookworm-slim
-
+# Stage 2: Runtime
+FROM python:3.12-slim
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
 WORKDIR /app
-
-COPY --from=builder /app/server ./server
-
-CMD ["./server"]
+COPY src/ ./src/
+EXPOSE 8080
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
