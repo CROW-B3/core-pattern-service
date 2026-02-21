@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/d1';
 import * as schema from './db/schema';
 
 export interface Environment {
-  PATTERN_CONTAINER: DurableObjectNamespace;
+  PATTERN_CONTAINER: DurableObjectNamespace<PatternAnalyzerContainer>;
   DB: D1Database;
   API_GATEWAY_URL: string;
   SYSTEM_SECRET: string;
@@ -34,9 +34,14 @@ export default {
     const url = new URL(request.url);
     const db = drizzle(env.DB, { schema });
 
+    if (url.pathname === '/' || url.pathname === '/health') {
+      return Response.json({ status: 'ok', service: 'crow-pattern-service' });
+    }
+
     if (url.pathname.startsWith('/api/v1/patterns/organization/')) {
       const orgId = url.pathname.split('/').at(-1);
       const period = url.searchParams.get('period') || 'weekly';
+      const q = url.searchParams.get('q');
 
       if (!orgId)
         return Response.json({ error: 'Missing orgId' }, { status: 400 });
@@ -46,8 +51,15 @@ export default {
         .from(schema.patternResult)
         .where(eq(schema.patternResult.organizationId, orgId));
 
-      const filtered =
+      let filtered =
         period !== 'all' ? patterns.filter(p => p.period === period) : patterns;
+
+      if (q) {
+        const lowerQ = q.toLowerCase();
+        filtered = filtered.filter(p =>
+          p.report?.toLowerCase().includes(lowerQ)
+        );
+      }
 
       return Response.json({ patterns: filtered });
     }

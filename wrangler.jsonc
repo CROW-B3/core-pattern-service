@@ -48,12 +48,26 @@
         {
           "binding": "DB",
           "database_name": "crow-core-pattern-service-db-dev",
-          "database_id": "38e42261-df6f-43a4-872f-068b9f4a4329",
+          "database_id": "ae277dc8-0f1d-4806-a503-791f7246d147",
           "migrations_dir": "drizzle/migrations"
         }
       ],
       "routes": [
-        { "pattern": "dev.patterns.crowai.dev", "custom_domain": true }
+        { "pattern": "dev.patterns.crowai.dev", "custom_domain": true },
+        { "pattern": "dev.internal.patterns.crowai.dev", "custom_domain": true }
+      ],
+      "durable_objects": {
+        "bindings": [
+          { "class_name": "PatternAnalyzerContainer", "name": "PATTERN_CONTAINER" }
+        ]
+      },
+      "containers": [
+        {
+          "class_name": "PatternAnalyzerContainer",
+          "name": "pattern-container",
+          "image": "./Dockerfile",
+          "max_instances": 2
+        }
       ]
     }
   }
