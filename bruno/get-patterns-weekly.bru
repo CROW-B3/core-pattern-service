@@ -1,0 +1,19 @@
+meta {
+  name: Get Patterns (Weekly)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/patterns/organization/{{orgId}}?period=weekly
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{apiKey}}
+}
+
+headers {
+  Content-Type: application/json
+}
