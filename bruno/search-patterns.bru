@@ -1,0 +1,19 @@
+meta {
+  name: Search Patterns
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/patterns/organization/{{orgId}}?query=foot+traffic
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{apiKey}}
+}
+
+headers {
+  Content-Type: application/json
+}
