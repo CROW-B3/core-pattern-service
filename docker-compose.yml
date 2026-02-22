@@ -1,0 +1,7 @@
+services:
+  pattern-service:
+    build: .
+    ports:
+      - '8007:8080'
+    environment:
+      - ENVIRONMENT=local
