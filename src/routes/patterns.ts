@@ -1,6 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import {
-  AnalyzeBodySchema,
   AnalyzeResponseSchema,
   ErrorSchema,
   PatternListResponseSchema,
@@ -58,10 +57,6 @@ export const AnalyzeRoute = createRoute({
   path: '/api/v1/patterns/organization/:orgId/analyze',
   request: {
     params: z.object({ orgId: z.string() }),
-    body: {
-      content: { 'application/json': { schema: AnalyzeBodySchema } },
-      required: false,
-    },
   },
   responses: {
     200: {
