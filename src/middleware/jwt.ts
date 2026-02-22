@@ -55,7 +55,6 @@ const verifyUserToken = async (token: string, authServiceUrl: string) => {
 
 export const createJWTMiddleware = (env: Environment) => {
   return async (c: Context<{ Bindings: Environment }>, next: Next) => {
-    // Allow system-to-system calls with X-System-Token header
     const systemToken = c.req.header('X-System-Token');
     if (systemToken && systemToken === env.SYSTEM_SECRET) {
       c.set('isSystem', true);
