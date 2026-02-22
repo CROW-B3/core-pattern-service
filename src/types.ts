@@ -5,6 +5,7 @@ export interface Environment {
   AI: Ai;
   PATTERN_CONTAINER: DurableObjectNamespace;
   API_GATEWAY_URL: string;
+  AUTH_SERVICE_URL: string;
   SYSTEM_SECRET: string;
   ENVIRONMENT: string;
 }
@@ -27,6 +28,24 @@ export const PatternListResponseSchema = z
     total: z.number(),
   })
   .openapi('PatternListResponse');
+
+export const PatternResultSchema = z
+  .object({
+    id: z.string(),
+    organizationId: z.string(),
+    period: z.string(),
+    sourceType: z.string().nullable(),
+    report: z.string(),
+    generatedAt: z.number(),
+  })
+  .openapi('PatternResult');
+
+export const PatternResultListResponseSchema = z
+  .object({
+    results: z.array(PatternResultSchema),
+    total: z.number(),
+  })
+  .openapi('PatternResultListResponse');
 
 export const AnalyzeBodySchema = z
   .object({
