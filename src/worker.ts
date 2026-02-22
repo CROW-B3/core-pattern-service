@@ -1,5 +1,7 @@
 import type { Environment } from './types';
 import { Container, getContainer } from '@cloudflare/containers';
+import { drizzle } from 'drizzle-orm/d1';
+import * as schema from './db/schema';
 import app from './index';
 
 export class PatternAnalyzerContainer extends Container {
@@ -26,9 +28,10 @@ async function triggerAnalysisForOrganization(
   period: string,
   apiGatewayUrl: string,
   systemSecret: string,
+  db: ReturnType<typeof drizzle>,
   sourceType?: string
 ): Promise<void> {
-  await container.fetch(
+  const res = await container.fetch(
     new Request('http://container/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -41,6 +44,28 @@ async function triggerAnalysisForOrganization(
       }),
     })
   );
+
+  if (!res.ok) {
+    console.error(
+      `Container analysis returned ${res.status} for org ${orgId}, period ${period}`
+    );
+    return;
+  }
+
+  const data = (await res.json()) as { result?: unknown };
+  const report =
+    typeof data.result === 'string'
+      ? data.result
+      : JSON.stringify(data.result ?? data);
+
+  await db.insert(schema.patternResult).values({
+    id: crypto.randomUUID(),
+    organizationId: orgId,
+    period,
+    sourceType: sourceType ?? null,
+    report,
+    generatedAt: new Date(),
+  });
 }
 
 export default {
@@ -53,8 +78,20 @@ export default {
   },
 
   async scheduled(event: ScheduledEvent, env: Environment): Promise<void> {
-    const period = 'daily';
+    // Derive the analysis period from the cron expression that fired:
+    //   "0 2 * * *"  → daily
+    //   "0 3 * * 1"  → weekly  (every Monday)
+    //   "0 4 1 * *"  → monthly (1st of month)
+    //   "0 5 1 1 *"  → yearly  (1st Jan)
+    const cronPeriodMap: Record<string, string> = {
+      '0 2 * * *': 'daily',
+      '0 3 * * 1': 'weekly',
+      '0 4 1 * *': 'monthly',
+      '0 5 1 1 *': 'yearly',
+    };
+    const period = cronPeriodMap[event.cron] ?? 'daily';
     const orgIds = await fetchOrganizationIds(env.API_GATEWAY_URL);
+    const db = drizzle(env.DB, { schema });
 
     for (const orgId of orgIds) {
       try {
@@ -67,7 +104,8 @@ export default {
           orgId,
           period,
           env.API_GATEWAY_URL,
-          env.SYSTEM_SECRET
+          env.SYSTEM_SECRET,
+          db
         );
         await triggerAnalysisForOrganization(
           container,
@@ -75,6 +113,7 @@ export default {
           period,
           env.API_GATEWAY_URL,
           env.SYSTEM_SECRET,
+          db,
           'cctv'
         );
       } catch (err) {

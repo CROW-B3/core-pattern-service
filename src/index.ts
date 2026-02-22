@@ -1,10 +1,11 @@
 import type { Environment } from './types';
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { logger } from 'hono/logger';
 import { poweredBy } from 'hono/powered-by';
 import * as schema from './db/schema';
+import { createJWTMiddleware } from './middleware/jwt';
 import {
   AnalyzeRoute,
   DeletePatternRoute,
@@ -22,12 +23,44 @@ app.openapi(HealthRoute, c => {
   return c.json({ status: 'ok', service: 'core-pattern-service' }, 200);
 });
 
+app.use('/api/v1/patterns/*', async (c, next) =>
+  createJWTMiddleware(c.env)(c, next)
+);
+
 app.openapi(GetPatternsRoute, async c => {
   const orgId = c.req.header('X-Organization-Id') ?? c.req.param('orgId');
-  const { query, limit, offset } = c.req.valid('query');
+  const { query, limit, offset, period } = c.req.valid('query');
   const limitNum = limit ? Number.parseInt(limit, 10) : 20;
   const offsetNum = offset ? Number.parseInt(offset, 10) : 0;
   const db = drizzle(c.env.DB, { schema });
+
+  // When a period is specified, serve from the pattern_result table which
+  // stores AI-generated analysis reports keyed by organization and period.
+  if (period) {
+    const resultRows = await db
+      .select()
+      .from(schema.patternResult)
+      .where(
+        and(
+          eq(schema.patternResult.organizationId, orgId),
+          eq(schema.patternResult.period, period)
+        )
+      )
+      .all();
+
+    const total = resultRows.length;
+    const paginated = resultRows
+      .slice(offsetNum, offsetNum + limitNum)
+      .map(r => ({
+        ...r,
+        generatedAt:
+          r.generatedAt instanceof Date
+            ? r.generatedAt.getTime()
+            : Number(r.generatedAt),
+      }));
+
+    return c.json({ results: paginated, total }, 200);
+  }
 
   const rows = await db
     .select()

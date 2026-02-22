@@ -4,6 +4,7 @@ import {
   AnalyzeResponseSchema,
   ErrorSchema,
   PatternListResponseSchema,
+  PatternResultListResponseSchema,
   PatternSchema,
 } from '../types';
 
@@ -16,12 +17,20 @@ export const GetPatternsRoute = createRoute({
       query: z.string().optional(),
       limit: z.string().optional(),
       offset: z.string().optional(),
+      period: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional(),
     }),
   },
   responses: {
     200: {
-      content: { 'application/json': { schema: PatternListResponseSchema } },
-      description: 'List patterns for organization',
+      content: {
+        'application/json': {
+          schema: z.union([
+            PatternListResponseSchema,
+            PatternResultListResponseSchema,
+          ]),
+        },
+      },
+      description: 'List patterns (or period-based results) for organization',
     },
   },
 });
