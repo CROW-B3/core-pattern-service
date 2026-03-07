@@ -3,7 +3,6 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { logger } from 'hono/logger';
-import { poweredBy } from 'hono/powered-by';
 import * as schema from './db/schema';
 import { createJWTMiddleware } from './middleware/jwt';
 import {
@@ -14,13 +13,52 @@ import {
   HealthRoute,
 } from './routes/patterns';
 
-const app = new OpenAPIHono<{ Bindings: Environment }>();
+const app = new OpenAPIHono<{ Bindings: Environment }>({
+  defaultHook: (result, c) => {
+    if (!result.success) {
+      return c.json(
+        { error: 'Bad Request', message: 'Invalid request parameters' },
+        400
+      );
+    }
+  },
+});
 
-app.use(poweredBy());
+app.onError((err, c) => {
+  const errorName = err instanceof Error ? err.name : '';
+  const errorMessage = err instanceof Error ? err.message : '';
+  if (
+    errorName === 'ZodError' ||
+    errorName === 'SyntaxError' ||
+    errorMessage.includes('Malformed JSON')
+  ) {
+    return c.json(
+      { error: 'Bad Request', message: 'Invalid request parameters' },
+      400
+    );
+  }
+  console.error('Unhandled error:', err);
+  return c.json({ error: 'Internal Server Error' }, 500);
+});
+
 app.use(logger());
 
 app.openapi(HealthRoute, c => {
-  return c.json({ status: 'ok', service: 'core-pattern-service' }, 200);
+  return c.json({ status: 'ok' }, 200);
+});
+
+app.use('/api/v1/*', async (c, next) => {
+  if (!c.env.INTERNAL_GATEWAY_KEY) {
+    return c.json({ error: 'Service unavailable' }, 503);
+  }
+  const key = c.req.header('X-Internal-Key');
+  if (!key || key !== c.env.INTERNAL_GATEWAY_KEY) {
+    return c.json(
+      { error: 'Unauthorized', message: 'Authentication required' },
+      401
+    );
+  }
+  return next();
 });
 
 app.use('/api/v1/patterns/*', async (c, next) =>
@@ -28,7 +66,14 @@ app.use('/api/v1/patterns/*', async (c, next) =>
 );
 
 app.openapi(GetPatternsRoute, async c => {
-  const orgId = c.req.header('X-Organization-Id') ?? c.req.param('orgId');
+  const callerOrgId = c.req.header('X-Organization-Id');
+  const orgId = c.req.param('orgId');
+  if (!callerOrgId || callerOrgId !== orgId) {
+    return c.json(
+      { error: 'Forbidden', message: 'Access denied to this organization' },
+      403
+    ) as never;
+  }
   const { query, limit, offset, period } = c.req.valid('query');
   const limitNum = limit ? Number.parseInt(limit, 10) : 20;
   const offsetNum = offset ? Number.parseInt(offset, 10) : 0;
@@ -86,6 +131,7 @@ app.openapi(GetPatternsRoute, async c => {
 
 app.openapi(GetPatternRoute, async c => {
   const patternId = c.req.param('patternId');
+  const callerOrgId = c.req.header('X-Organization-Id');
   const db = drizzle(c.env.DB, { schema });
 
   const row = await db
@@ -98,11 +144,26 @@ app.openapi(GetPatternRoute, async c => {
     return c.json({ error: 'Pattern not found' }, 404);
   }
 
+  // Fail-closed: caller must belong to the same org as the pattern
+  if (!callerOrgId || callerOrgId !== row.organizationId) {
+    return c.json(
+      { error: 'Forbidden', message: 'Access denied' },
+      403
+    ) as never;
+  }
+
   return c.json(row, 200);
 });
 
 app.openapi(AnalyzeRoute, async c => {
-  const orgId = c.req.header('X-Organization-Id') ?? c.req.param('orgId');
+  const callerOrgId = c.req.header('X-Organization-Id');
+  const orgId = c.req.param('orgId');
+  if (!callerOrgId || callerOrgId !== orgId) {
+    return c.json(
+      { error: 'Forbidden', message: 'Access denied to this organization' },
+      403
+    ) as never;
+  }
   const body = (await c.req.json().catch(() => ({}))) as {
     interactions?: object[];
   };
@@ -173,6 +234,14 @@ app.openapi(DeletePatternRoute, async c => {
 
   if (!row) {
     return c.json({ error: 'Pattern not found' }, 404);
+  }
+
+  const callerOrgId = c.req.header('X-Organization-Id');
+  if (!callerOrgId || callerOrgId !== row.organizationId) {
+    return c.json(
+      { error: 'Forbidden', message: 'Access denied to this pattern' },
+      403
+    ) as never;
   }
 
   await db.delete(schema.patterns).where(eq(schema.patterns.id, patternId));
