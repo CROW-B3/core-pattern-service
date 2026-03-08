@@ -22,7 +22,7 @@ const fetchJWKS = async (authServiceUrl: string) => {
     throw new Error('Failed to fetch JWKS');
   }
   cachedJWKS = (await response.json()) as Record<string, unknown>;
-  cacheExpiry = now + 86400;
+  cacheExpiry = now + 300; // 5-minute TTL — short enough to honour key rotations
   return cachedJWKS;
 };
 
@@ -55,9 +55,19 @@ const verifyUserToken = async (token: string, authServiceUrl: string) => {
 
 export const createJWTMiddleware = (env: Environment) => {
   return async (c: Context<{ Bindings: Environment }>, next: Next) => {
-    const systemToken = c.req.header('X-System-Token');
-    if (systemToken && systemToken === env.SYSTEM_SECRET) {
-      c.set('isSystem', true);
+    // Accept gateway-authenticated API key requests: gateway injects X-Internal-Key + X-Organization-Id
+    // This is a trusted path — the gateway has already verified the API key and resolved the org.
+    const internalKey = c.req.header('X-Internal-Key');
+    const orgIdFromGateway = c.req.header('X-Organization-Id');
+    if (
+      internalKey &&
+      env.INTERNAL_GATEWAY_KEY &&
+      internalKey === env.INTERNAL_GATEWAY_KEY &&
+      orgIdFromGateway
+    ) {
+      c.set('isSystem', false);
+      c.set('userId', '');
+      c.set('jwtPayload', { organizationId: orgIdFromGateway });
       return next();
     }
 

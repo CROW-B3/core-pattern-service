@@ -98,7 +98,7 @@ export const HealthRoute = createRoute({
     200: {
       content: {
         'application/json': {
-          schema: z.object({ status: z.string(), service: z.string() }),
+          schema: z.object({ status: z.string() }),
         },
       },
       description: 'Health check',

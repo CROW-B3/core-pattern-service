@@ -47,7 +47,7 @@
         "ENVIRONMENT": "dev",
         "API_GATEWAY_URL": "https://dev.api.crowai.dev",
         "AUTH_SERVICE_URL": "https://dev.internal.auth-api.crowai.dev",
-        "SYSTEM_SECRET": "DF1IKzRMqusC5A/56EjCFuCAKVgPNoW6pibNi5IEsFw="
+        // SYSTEM_SECRET: set via `wrangler secret put SYSTEM_SECRET --env dev`
       },
       "ai": {
         "binding": "AI"
