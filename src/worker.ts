@@ -9,10 +9,13 @@ export class PatternAnalyzerContainer extends Container {
   sleepAfter = '10m';
 }
 
-async function fetchOrganizationIds(apiGatewayUrl: string): Promise<string[]> {
+async function fetchOrganizationIds(
+  apiGatewayUrl: string,
+  systemSecret: string
+): Promise<string[]> {
   try {
     const res = await fetch(`${apiGatewayUrl}/api/v1/organizations`, {
-      headers: { 'X-System-Token': 'true' },
+      headers: { 'X-System-Token': systemSecret },
     });
     if (!res.ok) return [];
     const data = (await res.json()) as { organizations: Array<{ id: string }> };
@@ -90,7 +93,10 @@ export default {
       '0 5 1 1 *': 'yearly',
     };
     const period = cronPeriodMap[event.cron] ?? 'daily';
-    const orgIds = await fetchOrganizationIds(env.API_GATEWAY_URL);
+    const orgIds = await fetchOrganizationIds(
+      env.API_GATEWAY_URL,
+      env.SYSTEM_SECRET
+    );
     const db = drizzle(env.DB, { schema });
 
     for (const orgId of orgIds) {
