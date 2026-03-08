@@ -8,6 +8,7 @@ export interface Environment {
   AUTH_SERVICE_URL: string;
   SYSTEM_SECRET: string;
   ENVIRONMENT: string;
+  INTERNAL_GATEWAY_KEY?: string;
 }
 
 export const PatternSchema = z
