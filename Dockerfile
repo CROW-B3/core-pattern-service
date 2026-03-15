@@ -1,12 +1,16 @@
-FROM oven/bun:1 AS builder
+# Stage 1: Builder
+FROM python:3.12-slim AS builder
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /app
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
-COPY . ./
-RUN bunx wrangler deploy --dry-run --outdir .wrangler/dist --env local
+COPY pyproject.toml .
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --no-editable
 
-FROM jacoblincool/workerd
-WORKDIR /worker
-COPY --from=builder /app/.wrangler/dist/index.js ./index.js
-COPY worker.capnp ./worker.capnp
+# Stage 2: Runtime
+FROM python:3.12-slim
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+WORKDIR /app
+COPY src/ ./src/
 EXPOSE 8080
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
