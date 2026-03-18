@@ -34,7 +34,7 @@
   "devDependencies": {
     "@commitlint/config-conventional": "^20.3.0",
     "@deox/drizzle-d1-utils": "^0.0.1",
-    "drizzle-kit": "^0.31.8",
+    "drizzle-kit": "^0.31.10",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "prettier": "^3.7.4",
