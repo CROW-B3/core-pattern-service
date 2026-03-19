@@ -41,7 +41,7 @@
   "vars": {
     "ENVIRONMENT": "prod",
     "AXIOM_DATASET": "crow-traces",
-    "API_GATEWAY_URL": "http://localhost:8000"
+    "API_GATEWAY_URL": "https://api.crowai.dev"
   },
   "routes": [
     { "pattern": "patterns.crowai.dev", "custom_domain": true }
