@@ -7,6 +7,81 @@ import {
   PatternSchema,
 } from '../types';
 
+// ---------------------------------------------------------------------------
+// Client-facing convenience routes (accept organizationId as query param)
+// ---------------------------------------------------------------------------
+
+export const GetPatternsQueryRoute = createRoute({
+  method: 'get',
+  path: '/api/v1/patterns',
+  request: {
+    query: z.object({
+      organizationId: z.string().min(1),
+      query: z.string().optional(),
+      limit: z.string().optional(),
+      offset: z.string().optional(),
+      period: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional(),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: z.union([
+            PatternListResponseSchema,
+            PatternResultListResponseSchema,
+          ]),
+        },
+      },
+      description: 'List patterns for organization',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Missing organizationId',
+    },
+    403: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Forbidden',
+    },
+  },
+});
+
+export const DetectPatternsRoute = createRoute({
+  method: 'post',
+  path: '/api/v1/patterns/detect',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            organizationId: z.string().min(1),
+            interactions: z.array(z.record(z.string(), z.unknown())).optional(),
+          }),
+        },
+      },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: AnalyzeResponseSchema } },
+      description: 'Pattern detection result',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Missing organizationId',
+    },
+    403: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Forbidden',
+    },
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Original routes
+// ---------------------------------------------------------------------------
+
 export const GetPatternsRoute = createRoute({
   method: 'get',
   path: '/api/v1/patterns/organization/:orgId',
