@@ -23,6 +23,7 @@
   "dependencies": {
     "@antfu/eslint-config": "^6.7.3",
     "@cloudflare/containers": "^0.1.0",
+    "@cloudflare/workers-types": "^4.20240124.0",
     "@hono/swagger-ui": "^0.5.3",
     "@hono/zod-openapi": "^1.2.0",
     "@microlabs/otel-cf-workers": "^1.0.0-rc.52",
