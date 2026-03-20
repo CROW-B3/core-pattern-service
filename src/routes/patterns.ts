@@ -7,10 +7,6 @@ import {
   PatternSchema,
 } from '../types';
 
-// ---------------------------------------------------------------------------
-// Client-facing convenience routes (accept organizationId as query param)
-// ---------------------------------------------------------------------------
-
 export const GetPatternsQueryRoute = createRoute({
   method: 'get',
   path: '/api/v1/patterns',
@@ -77,10 +73,6 @@ export const DetectPatternsRoute = createRoute({
     },
   },
 });
-
-// ---------------------------------------------------------------------------
-// Original routes
-// ---------------------------------------------------------------------------
 
 export const GetPatternsRoute = createRoute({
   method: 'get',

@@ -67,10 +67,6 @@ app.use('/api/v1/patterns/*', async (c, next) =>
   createJWTMiddleware(c.env)(c, next)
 );
 
-// ---------------------------------------------------------------------------
-// Client-facing convenience endpoints — organizationId as query/body param
-// ---------------------------------------------------------------------------
-
 app.openapi(GetPatternsQueryRoute, async c => {
   const callerOrgId = c.req.header('X-Organization-Id');
   const { organizationId, query, limit, offset, period } = c.req.valid('query');
@@ -205,10 +201,6 @@ app.openapi(DetectPatternsRoute, async c => {
   return c.json({ patternId, type, confidence, insights }, 200);
 });
 
-// ---------------------------------------------------------------------------
-// Original routes
-// ---------------------------------------------------------------------------
-
 app.openapi(GetPatternsRoute, async c => {
   const callerOrgId = c.req.header('X-Organization-Id');
   const orgId = c.req.param('orgId');
@@ -223,8 +215,6 @@ app.openapi(GetPatternsRoute, async c => {
   const offsetNum = offset ? Number.parseInt(offset, 10) : 0;
   const db = drizzle(c.env.DB, { schema });
 
-  // When a period is specified, serve from the pattern_result table which
-  // stores AI-generated analysis reports keyed by organization and period.
   if (period) {
     const resultRows = await db
       .select()
@@ -288,7 +278,6 @@ app.openapi(GetPatternRoute, async c => {
     return c.json({ error: 'Pattern not found' }, 404);
   }
 
-  // Fail-closed: caller must belong to the same org as the pattern
   if (!callerOrgId || callerOrgId !== row.organizationId) {
     return c.json(
       { error: 'Forbidden', message: 'Access denied' },
