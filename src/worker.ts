@@ -81,11 +81,6 @@ export default {
   },
 
   async scheduled(event: ScheduledEvent, env: Environment): Promise<void> {
-    // Derive the analysis period from the cron expression that fired:
-    //   "0 2 * * *"  → daily
-    //   "0 3 * * 1"  → weekly  (every Monday)
-    //   "0 4 1 * *"  → monthly (1st of month)
-    //   "0 5 1 1 *"  → yearly  (1st Jan)
     const cronPeriodMap: Record<string, string> = {
       '0 2 * * *': 'daily',
       '0 3 * * 1': 'weekly',

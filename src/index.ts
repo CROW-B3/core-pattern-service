@@ -8,7 +8,9 @@ import { createJWTMiddleware } from './middleware/jwt';
 import {
   AnalyzeRoute,
   DeletePatternRoute,
+  DetectPatternsRoute,
   GetPatternRoute,
+  GetPatternsQueryRoute,
   GetPatternsRoute,
   HealthRoute,
 } from './routes/patterns';
@@ -65,6 +67,140 @@ app.use('/api/v1/patterns/*', async (c, next) =>
   createJWTMiddleware(c.env)(c, next)
 );
 
+app.openapi(GetPatternsQueryRoute, async c => {
+  const callerOrgId = c.req.header('X-Organization-Id');
+  const { organizationId, query, limit, offset, period } = c.req.valid('query');
+
+  if (!callerOrgId || callerOrgId !== organizationId) {
+    return c.json(
+      { error: 'Forbidden', message: 'Access denied to this organization' },
+      403
+    ) as never;
+  }
+
+  const limitNum = limit ? Number.parseInt(limit, 10) : 20;
+  const offsetNum = offset ? Number.parseInt(offset, 10) : 0;
+  const db = drizzle(c.env.DB, { schema });
+
+  if (period) {
+    const resultRows = await db
+      .select()
+      .from(schema.patternResult)
+      .where(
+        and(
+          eq(schema.patternResult.organizationId, organizationId),
+          eq(schema.patternResult.period, period)
+        )
+      )
+      .all();
+
+    const total = resultRows.length;
+    const paginated = resultRows
+      .slice(offsetNum, offsetNum + limitNum)
+      .map(r => ({
+        ...r,
+        generatedAt:
+          r.generatedAt instanceof Date
+            ? r.generatedAt.getTime()
+            : Number(r.generatedAt),
+      }));
+
+    return c.json({ results: paginated, total }, 200);
+  }
+
+  const rows = await db
+    .select()
+    .from(schema.patterns)
+    .where(eq(schema.patterns.organizationId, organizationId))
+    .all();
+
+  let filtered = rows;
+  if (query) {
+    const lowerQ = query.toLowerCase();
+    filtered = rows.filter(
+      p =>
+        p.data.toLowerCase().includes(lowerQ) ||
+        p.type.toLowerCase().includes(lowerQ)
+    );
+  }
+
+  const total = filtered.length;
+  const paginated = filtered.slice(offsetNum, offsetNum + limitNum);
+
+  return c.json({ patterns: paginated, total }, 200);
+});
+
+app.openapi(DetectPatternsRoute, async c => {
+  const callerOrgId = c.req.header('X-Organization-Id');
+  const body = c.req.valid('json');
+  const { organizationId, interactions = [] } = body;
+
+  if (!callerOrgId || callerOrgId !== organizationId) {
+    return c.json(
+      { error: 'Forbidden', message: 'Access denied to this organization' },
+      403
+    ) as never;
+  }
+
+  const db = drizzle(c.env.DB, { schema });
+
+  const prompt =
+    interactions.length > 0
+      ? `Analyze these ${interactions.length} interactions and identify behavioral patterns: ${JSON.stringify(interactions).slice(0, 3000)}`
+      : `Generate a behavioral pattern analysis summary for organization ${organizationId}. Identify common user behavior patterns, anomalies, and actionable insights.`;
+
+  const aiResponse = (await c.env.AI.run(
+    '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+    {
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a behavioral pattern analysis AI. Respond with JSON containing: type (string, e.g. "engagement", "anomaly", "trend"), confidence (number 0-1), insights (string summary). Only respond with valid JSON.',
+        },
+        { role: 'user', content: prompt },
+      ],
+    }
+  )) as { response?: string };
+
+  let type = 'general';
+  let confidence = 0.7;
+  let insights = 'Pattern analysis complete.';
+
+  try {
+    const rawResponse = aiResponse?.response ?? '{}';
+    const cleanedResponse = rawResponse
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/, '')
+      .trim();
+    const parsed = JSON.parse(cleanedResponse) as {
+      type?: string;
+      confidence?: number;
+      insights?: string;
+    };
+    if (parsed.type) type = parsed.type;
+    if (typeof parsed.confidence === 'number') confidence = parsed.confidence;
+    if (parsed.insights) insights = parsed.insights;
+  } catch {
+    insights = aiResponse?.response ?? insights;
+  }
+
+  const now = Date.now();
+  const patternId = crypto.randomUUID();
+
+  await db.insert(schema.patterns).values({
+    id: patternId,
+    organizationId,
+    type,
+    confidence,
+    data: JSON.stringify({ insights, interactionCount: interactions.length }),
+    detectedAt: now,
+    createdAt: now,
+  });
+
+  return c.json({ patternId, type, confidence, insights }, 200);
+});
+
 app.openapi(GetPatternsRoute, async c => {
   const callerOrgId = c.req.header('X-Organization-Id');
   const orgId = c.req.param('orgId');
@@ -79,8 +215,6 @@ app.openapi(GetPatternsRoute, async c => {
   const offsetNum = offset ? Number.parseInt(offset, 10) : 0;
   const db = drizzle(c.env.DB, { schema });
 
-  // When a period is specified, serve from the pattern_result table which
-  // stores AI-generated analysis reports keyed by organization and period.
   if (period) {
     const resultRows = await db
       .select()
@@ -144,7 +278,6 @@ app.openapi(GetPatternRoute, async c => {
     return c.json({ error: 'Pattern not found' }, 404);
   }
 
-  // Fail-closed: caller must belong to the same org as the pattern
   if (!callerOrgId || callerOrgId !== row.organizationId) {
     return c.json(
       { error: 'Forbidden', message: 'Access denied' },
@@ -194,7 +327,12 @@ app.openapi(AnalyzeRoute, async c => {
   let insights = 'Pattern analysis complete.';
 
   try {
-    const parsed = JSON.parse(aiResponse?.response ?? '{}') as {
+    const rawResponse = aiResponse?.response ?? '{}';
+    const cleanedResponse = rawResponse
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/, '')
+      .trim();
+    const parsed = JSON.parse(cleanedResponse) as {
       type?: string;
       confidence?: number;
       insights?: string;
