@@ -46,7 +46,6 @@
   ],
   "vars": {
     "ENVIRONMENT": "prod",
-    "AXIOM_DATASET": "crow-traces",
     "API_GATEWAY_URL": "https://api.crowai.dev",
     "AI_GATEWAY_ID": "crow-ai-gateway"
   },
