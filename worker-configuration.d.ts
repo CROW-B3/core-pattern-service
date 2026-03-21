@@ -11,7 +11,6 @@ declare namespace Cloudflare {
     DB: D1Database;
     AI: Ai;
     ENVIRONMENT: 'dev';
-    AXIOM_DATASET: 'crow-traces';
     API_GATEWAY_URL: 'https://dev.api.crowai.dev';
     AUTH_SERVICE_URL: 'https://dev.internal.auth-api.crowai.dev';
     CLOUDFLARE_D1_ACCOUNT_ID: string;
@@ -20,7 +19,6 @@ declare namespace Cloudflare {
     S3_API: string;
     R2_ACCESS_KEY_ID: string;
     R2_SECRET_ACCESS_KEY: string;
-    AXIOM_API_TOKEN: string;
     PATTERN_CONTAINER: DurableObjectNamespace<
       import('./src/worker').PatternAnalyzerContainer
     >;
@@ -30,7 +28,6 @@ declare namespace Cloudflare {
     DB: D1Database;
     AI: Ai;
     ENVIRONMENT: 'dev' | 'prod';
-    AXIOM_DATASET: 'crow-traces';
     API_GATEWAY_URL: 'https://dev.api.crowai.dev' | 'https://api.crowai.dev';
     AUTH_SERVICE_URL?: 'https://dev.internal.auth-api.crowai.dev';
     CLOUDFLARE_D1_ACCOUNT_ID: string;
@@ -39,7 +36,6 @@ declare namespace Cloudflare {
     S3_API: string;
     R2_ACCESS_KEY_ID: string;
     R2_SECRET_ACCESS_KEY: string;
-    AXIOM_API_TOKEN: string;
     PATTERN_CONTAINER: DurableObjectNamespace<
       import('./src/worker').PatternAnalyzerContainer
     >;
@@ -56,7 +52,6 @@ declare namespace NodeJS {
     Pick<
       Cloudflare.Env,
       | 'ENVIRONMENT'
-      | 'AXIOM_DATASET'
       | 'API_GATEWAY_URL'
       | 'AUTH_SERVICE_URL'
       | 'CLOUDFLARE_D1_ACCOUNT_ID'
@@ -65,7 +60,6 @@ declare namespace NodeJS {
       | 'S3_API'
       | 'R2_ACCESS_KEY_ID'
       | 'R2_SECRET_ACCESS_KEY'
-      | 'AXIOM_API_TOKEN'
     >
   > {}
 }

@@ -26,7 +26,6 @@
     "@cloudflare/workers-types": "^4.20240124.0",
     "@hono/swagger-ui": "^0.5.3",
     "@hono/zod-openapi": "^1.2.0",
-    "@microlabs/otel-cf-workers": "^1.0.0-rc.52",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.11.3",
     "jiti": "^2.6.1",
