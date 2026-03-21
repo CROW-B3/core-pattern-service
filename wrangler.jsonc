@@ -83,6 +83,12 @@
         { "pattern": "dev.patterns.crowai.dev", "custom_domain": true },
         { "pattern": "dev.internal.patterns.crowai.dev", "custom_domain": true }
       ],
+      "vectorize": [
+        {
+          "binding": "VECTORIZE",
+          "index_name": "crow-patterns-dev"
+        }
+      ],
       "durable_objects": {
         "bindings": [
           { "class_name": "PatternAnalyzerContainer", "name": "PATTERN_CONTAINER" }
