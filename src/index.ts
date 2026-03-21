@@ -160,7 +160,8 @@ app.openapi(DetectPatternsRoute, async c => {
         },
         { role: 'user', content: prompt },
       ],
-    }
+    },
+    { gateway: { id: 'crow-ai-gateway', skipCache: false } }
   )) as { response?: string };
 
   let type = 'general';
@@ -319,7 +320,8 @@ app.openapi(AnalyzeRoute, async c => {
         },
         { role: 'user', content: prompt },
       ],
-    }
+    },
+    { gateway: { id: 'crow-ai-gateway', skipCache: false } }
   )) as { response?: string };
 
   let type = 'general';

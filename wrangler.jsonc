@@ -38,10 +38,16 @@
       "migrations_dir": "drizzle/migrations"
     }
   ],
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "crow-patterns"
+    }
+  ],
   "vars": {
     "ENVIRONMENT": "prod",
-    "AXIOM_DATASET": "crow-traces",
-    "API_GATEWAY_URL": "https://api.crowai.dev"
+    "API_GATEWAY_URL": "https://api.crowai.dev",
+    "AI_GATEWAY_ID": "crow-ai-gateway"
   },
   "routes": [
     { "pattern": "patterns.crowai.dev", "custom_domain": true }
@@ -50,9 +56,9 @@
     "dev": {
       "vars": {
         "ENVIRONMENT": "dev",
-        "AXIOM_DATASET": "crow-traces",
         "API_GATEWAY_URL": "https://dev.api.crowai.dev",
         "AUTH_SERVICE_URL": "https://dev.internal.auth-api.crowai.dev",
+        "AI_GATEWAY_ID": "crow-ai-gateway",
         // SYSTEM_SECRET: set via `wrangler secret put SYSTEM_SECRET --env dev`
       },
       "ai": {
@@ -75,6 +81,12 @@
       "routes": [
         { "pattern": "dev.patterns.crowai.dev", "custom_domain": true },
         { "pattern": "dev.internal.patterns.crowai.dev", "custom_domain": true }
+      ],
+      "vectorize": [
+        {
+          "binding": "VECTORIZE",
+          "index_name": "crow-patterns-dev"
+        }
       ],
       "durable_objects": {
         "bindings": [

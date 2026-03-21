@@ -9,8 +9,6 @@ export interface Environment {
   SYSTEM_SECRET: string;
   ENVIRONMENT: string;
   INTERNAL_GATEWAY_KEY?: string;
-  AXIOM_API_TOKEN?: string;
-  AXIOM_DATASET?: string;
 }
 
 export const PatternSchema = z
