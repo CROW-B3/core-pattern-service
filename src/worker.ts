@@ -4,6 +4,8 @@ import { drizzle } from 'drizzle-orm/d1';
 import * as schema from './db/schema';
 import app from './index';
 
+type AnalysisDB = ReturnType<typeof drizzle<typeof schema>>;
+
 export class PatternAnalyzerContainer extends Container {
   defaultPort = 8080;
   sleepAfter = '10m';
@@ -22,6 +24,109 @@ async function fetchOrganizationIds(
     return data.organizations?.map(o => o.id) || [];
   } catch {
     return [];
+  }
+}
+
+async function fetchRecentInteractions(
+  apiGatewayUrl: string,
+  systemSecret: string,
+  orgId: string,
+  sinceMs: number
+): Promise<object[]> {
+  try {
+    const since = new Date(sinceMs).toISOString();
+    const res = await fetch(
+      `${apiGatewayUrl}/api/v1/interactions/organization/${orgId}?limit=500&since=${since}`,
+      { headers: { 'X-System-Token': systemSecret } }
+    );
+    if (!res.ok) return [];
+    const data = (await res.json()) as { interactions?: object[] };
+    return data.interactions ?? [];
+  } catch {
+    return [];
+  }
+}
+
+async function triggerHourlyAnalysis(
+  container: { fetch: (req: Request) => Promise<Response> },
+  orgId: string,
+  interactions: object[],
+  apiGatewayUrl: string,
+  systemSecret: string,
+  db: AnalysisDB,
+  env: Environment
+): Promise<void> {
+  const res = await container.fetch(
+    new Request('http://container/detect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orgId,
+        period: '1h',
+        interactions,
+        apiGatewayUrl,
+        systemSecret,
+      }),
+    })
+  );
+
+  if (!res.ok) {
+    console.error(`Hourly analysis returned ${res.status} for org ${orgId}`);
+    return;
+  }
+
+  const data = (await res.json()) as {
+    result?: {
+      patterns?: unknown[];
+      correlations?: unknown[];
+      productIds?: string[];
+    };
+  };
+  const report =
+    typeof data.result === 'string'
+      ? data.result
+      : JSON.stringify(data.result ?? data);
+
+  const productIds = data.result?.productIds
+    ? JSON.stringify(data.result.productIds)
+    : null;
+
+  const resultId = crypto.randomUUID();
+
+  await db.insert(schema.patternResult).values({
+    id: resultId,
+    organizationId: orgId,
+    period: '1h',
+    sourceType: null,
+    report,
+    productIds,
+    generatedAt: new Date(),
+  });
+
+  await vectorizePatternResult(env, resultId, orgId, report);
+}
+
+async function vectorizePatternResult(
+  env: Environment,
+  resultId: string,
+  organizationId: string,
+  report: string
+): Promise<void> {
+  try {
+    const textToEmbed = report.slice(0, 2000);
+    const embeddingResponse = (await env.AI.run('@cf/baai/bge-m3', {
+      text: [textToEmbed],
+    })) as { data: number[][] };
+    const values = embeddingResponse.data[0];
+    await env.VECTORIZE.upsert([
+      {
+        id: resultId,
+        values,
+        metadata: { organizationId, type: 'pattern_result' },
+      },
+    ]);
+  } catch (err) {
+    console.error('Vectorize upsert failed for pattern result:', err);
   }
 }
 
@@ -82,6 +187,7 @@ export default {
 
   async scheduled(event: ScheduledEvent, env: Environment): Promise<void> {
     const cronPeriodMap: Record<string, string> = {
+      '0 * * * *': '1h',
       '0 2 * * *': 'daily',
       '0 3 * * 1': 'weekly',
       '0 4 1 * *': 'monthly',
@@ -93,6 +199,40 @@ export default {
       env.SYSTEM_SECRET
     );
     const db = drizzle(env.DB, { schema });
+
+    if (period === '1h') {
+      const oneHourAgo = Date.now() - 3600000;
+      for (const orgId of orgIds) {
+        try {
+          const container = await getContainer(
+            env.PATTERN_CONTAINER as unknown as DurableObjectNamespace<PatternAnalyzerContainer>,
+            orgId
+          );
+          const interactions = await fetchRecentInteractions(
+            env.API_GATEWAY_URL,
+            env.SYSTEM_SECRET,
+            orgId,
+            oneHourAgo
+          );
+          if (interactions.length === 0) continue;
+          await triggerHourlyAnalysis(
+            container,
+            orgId,
+            interactions,
+            env.API_GATEWAY_URL,
+            env.SYSTEM_SECRET,
+            db,
+            env
+          );
+        } catch (err) {
+          console.error(
+            `Hourly pattern analysis failed for org ${orgId}:`,
+            err
+          );
+        }
+      }
+      return;
+    }
 
     for (const orgId of orgIds) {
       try {

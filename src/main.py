@@ -1,4 +1,3 @@
-"""FastAPI app for pattern analysis container."""
 import os
 from typing import Any
 import httpx
@@ -16,10 +15,26 @@ class AnalyzeRequest(BaseModel):
     period: str
     apiGatewayUrl: str
     systemSecret: str | None = None
+    sourceType: str | None = None
+
+
+class DetectRequest(BaseModel):
+    orgId: str
+    period: str
+    interactions: list[dict[str, Any]] = []
+    apiGatewayUrl: str
+    systemSecret: str | None = None
+
+
+def build_llm() -> CloudflareWorkersAILLM:
+    return CloudflareWorkersAILLM(
+        cf_account_id=os.environ.get("CF_ACCOUNT_ID", ""),
+        cf_api_token=os.environ.get("CF_API_TOKEN", ""),
+        ai_gateway_id=os.environ.get("AI_GATEWAY_ID", "crow-ai-gateway"),
+    )
 
 
 async def fetch_interactions(api_gateway_url: str, org_id: str) -> dict[str, list[Any]]:
-    """Fetch interactions grouped by source type."""
     result: dict[str, list[Any]] = {"web": [], "cctv": [], "social": []}
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -39,7 +54,6 @@ async def fetch_interactions(api_gateway_url: str, org_id: str) -> dict[str, lis
 
 
 async def fetch_products(api_gateway_url: str, org_id: str) -> list[Any]:
-    """Fetch products for the organization."""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             res = await client.get(
@@ -53,19 +67,39 @@ async def fetch_products(api_gateway_url: str, org_id: str) -> list[Any]:
     return []
 
 
+@app.post("/detect")
+async def detect(request: DetectRequest) -> dict[str, Any]:
+    llm = build_llm()
+    products = await fetch_products(request.apiGatewayUrl, request.orgId)
+
+    grouped: dict[str, list[Any]] = {"web": [], "cctv": [], "social": []}
+    for interaction in request.interactions:
+        source = interaction.get("sourceType", "web")
+        if source in grouped:
+            grouped[source].append(interaction)
+        else:
+            grouped.setdefault(source, []).append(interaction)
+
+    crew = PatternCrew(llm=llm)
+    result = crew.kickoff({
+        "interactions": grouped,
+        "products": products,
+        "period": request.period,
+    })
+
+    return {
+        "orgId": request.orgId,
+        "period": request.period,
+        "result": result,
+    }
+
+
 @app.post("/analyze")
 async def analyze(request: AnalyzeRequest) -> dict[str, Any]:
-    """Run pattern analysis for an organization."""
-    cf_account_id = os.environ.get("CF_ACCOUNT_ID", "")
-    cf_api_token = os.environ.get("CF_API_TOKEN", "")
-
+    llm = build_llm()
     interactions = await fetch_interactions(request.apiGatewayUrl, request.orgId)
     products = await fetch_products(request.apiGatewayUrl, request.orgId)
 
-    llm = CloudflareWorkersAILLM(
-        cf_account_id=cf_account_id,
-        cf_api_token=cf_api_token,
-    )
     crew = PatternCrew(llm=llm)
     result = crew.kickoff({
         "interactions": interactions,

@@ -28,7 +28,7 @@
     { "tag": "v1", "new_sqlite_classes": ["PatternAnalyzerContainer"] }
   ],
   "triggers": {
-    "crons": ["0 2 * * *", "0 3 * * 1", "0 4 1 * *", "0 5 1 1 *"]
+    "crons": ["0 * * * *", "0 2 * * *", "0 3 * * 1", "0 4 1 * *", "0 5 1 1 *"]
   },
   "d1_databases": [
     {

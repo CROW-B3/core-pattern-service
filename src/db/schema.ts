@@ -6,6 +6,7 @@ export const patternResult = sqliteTable('pattern_result', {
   period: text('period').notNull(),
   sourceType: text('source_type'),
   report: text('report').notNull(),
+  productIds: text('product_ids'),
   generatedAt: integer('generated_at', { mode: 'timestamp' }).notNull(),
 });
 

@@ -3,6 +3,7 @@ import { z } from '@hono/zod-openapi';
 export interface Environment {
   DB: D1Database;
   AI: Ai;
+  VECTORIZE: VectorizeIndex;
   PATTERN_CONTAINER: DurableObjectNamespace;
   API_GATEWAY_URL: string;
   AUTH_SERVICE_URL: string;
@@ -37,9 +38,25 @@ export const PatternResultSchema = z
     period: z.string(),
     sourceType: z.string().nullable(),
     report: z.string(),
+    productIds: z.string().nullable().optional(),
     generatedAt: z.number(),
   })
   .openapi('PatternResult');
+
+export const VectorSearchResultSchema = z
+  .object({
+    id: z.string(),
+    score: z.number(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+  })
+  .openapi('VectorSearchResult');
+
+export const VectorSearchResponseSchema = z
+  .object({
+    results: z.array(VectorSearchResultSchema),
+    query: z.string(),
+  })
+  .openapi('VectorSearchResponse');
 
 export const PatternResultListResponseSchema = z
   .object({
