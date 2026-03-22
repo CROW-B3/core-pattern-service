@@ -4,6 +4,8 @@ export interface Environment {
   DB: D1Database;
   AI: Ai;
   VECTORIZE: VectorizeIndex;
+  PRODUCT_VECTORIZE: VectorizeIndex;
+  QNA_VECTORIZE: VectorizeIndex;
   PATTERN_CONTAINER: DurableObjectNamespace;
   API_GATEWAY_URL: string;
   AUTH_SERVICE_URL: string;
