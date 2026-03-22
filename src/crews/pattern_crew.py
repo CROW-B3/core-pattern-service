@@ -11,40 +11,77 @@ class PatternCrew:
     def _create_agents(self) -> dict[str, Agent]:
         time_series_analyst = Agent(
             role="Time-Series Analyst",
-            goal="Identify trends, seasonality, and growth rates in interaction data over time",
-            backstory="Expert statistician specializing in time-series decomposition and trend analysis for customer behavior data",
+            goal=(
+                "Identify trends, seasonality, and growth rates in interaction data over time. "
+                "Each trend must have a descriptive title (e.g. 'Rising Weekend Foot Traffic' not 'trend_1'). "
+                "Never include UUIDs or internal IDs in any output text."
+            ),
+            backstory=(
+                "Expert statistician specializing in time-series decomposition and trend analysis for customer "
+                "behavior data. You write findings in plain business language with named patterns — "
+                "never generic labels or internal identifiers."
+            ),
             llm=self.llm,
             verbose=False,
         )
 
         anomaly_detective = Agent(
             role="Anomaly Detective",
-            goal="Detect outliers, distribution shifts, and unusual patterns in behavioral data",
-            backstory="Data scientist specializing in anomaly detection using statistical methods and distribution analysis",
+            goal=(
+                "Detect outliers, distribution shifts, and unusual patterns in behavioral data. "
+                "Name each anomaly descriptively (e.g. 'Sudden Drop in Evening Checkouts' not 'anomaly_2'). "
+                "Never include UUIDs or internal IDs in any output text."
+            ),
+            backstory=(
+                "Data scientist specializing in anomaly detection using statistical methods and distribution analysis. "
+                "You describe anomalies in human-readable business terms with clear severity and impact context."
+            ),
             llm=self.llm,
             verbose=False,
         )
 
         correlation_mapper = Agent(
             role="Correlation Mapper",
-            goal="Discover cross-channel correlations, product co-interest patterns, and behavioral linkages",
-            backstory="Analytics expert specializing in multi-variate correlation analysis and product affinity mapping",
+            goal=(
+                "Discover cross-channel correlations, product co-interest patterns, and behavioral linkages. "
+                "Link correlations to specific product categories when possible. "
+                "Never include UUIDs or internal IDs in correlation descriptions."
+            ),
+            backstory=(
+                "Analytics expert specializing in multi-variate correlation analysis and product affinity mapping. "
+                "You describe relationships in plain English, naming product categories explicitly "
+                "(e.g. 'Customers browsing Electronics also visit Home Appliances within the same session')."
+            ),
             llm=self.llm,
             verbose=False,
         )
 
         insight_generator = Agent(
             role="Insight Generator",
-            goal="Synthesize findings into actionable business recommendations and strategic insights",
-            backstory="Business intelligence strategist who translates data patterns into clear actionable recommendations",
+            goal=(
+                "Synthesize findings into concise, actionable business recommendations. "
+                "Every recommendation must have a descriptive title and link to a specific product category or behavior. "
+                "Never include UUIDs, org IDs, or internal identifiers anywhere in the output."
+            ),
+            backstory=(
+                "Business intelligence strategist who translates data patterns into clear, executive-ready recommendations. "
+                "You write tight bullet-point insights — never verbose paragraphs. "
+                "Each recommendation is tied to a product category or customer segment for direct actionability."
+            ),
             llm=self.llm,
             verbose=False,
         )
 
         confidence_assessor = Agent(
             role="Confidence Assessor",
-            goal="Validate statistical robustness of findings and assign confidence scores to each pattern",
-            backstory="Statistical quality assurance specialist who validates analytical rigor and quantifies uncertainty",
+            goal=(
+                "Validate statistical robustness of findings and assign confidence scores to each named pattern. "
+                "Reference patterns by their descriptive titles only — never by IDs or internal references."
+            ),
+            backstory=(
+                "Statistical quality assurance specialist who validates analytical rigor and quantifies uncertainty. "
+                "You produce human-readable methodology notes and label each pattern by its descriptive title."
+            ),
             llm=self.llm,
             verbose=False,
         )
@@ -65,21 +102,31 @@ class PatternCrew:
         period: str,
     ) -> list[Task]:
         common_rules = (
-            "CRITICAL RULES:\n"
+            "CRITICAL OUTPUT RULES:\n"
             "- NEVER include organization IDs, UUIDs, internal identifiers, or raw system IDs in any output\n"
-            "- Refer to the organization as 'your organization' or 'the team' instead of IDs\n"
-            "- Use human-readable, descriptive language throughout\n"
-            "- Format all insight text using markdown with proper headings (##), bullet points, and bold for emphasis\n"
+            "- Refer to the organization as 'your organization' or 'the team' — never by ID\n"
+            "- Use descriptive, human-readable titles for every pattern, trend, and anomaly\n"
+            "- Keep all insight text concise: bullet points preferred over long paragraphs\n"
+            "- Format insight text fields using markdown (## headings, **bold**, bullet points)\n"
+            "- Output ONLY valid JSON — no markdown code fences, no extra text outside the JSON\n"
         )
 
         trend_task = Task(
             description=(
                 f"Analyze {period} interaction data for trends, seasonality, and growth rates.\n\n"
                 f"Data: {interactions_summary}\n\n"
-                f"Generate a descriptive title for each trend (e.g., 'Rising Evening Engagement' not just 'engagement').\n\n"
+                f"Requirements:\n"
+                f"- Give each trend a descriptive title capturing the 'what' and 'when' "
+                f"(e.g., 'Rising Evening Web Engagement', 'Declining Weekend In-Store Visits')\n"
+                f"- Link trends to product categories when the data supports it\n"
+                f"- Keep each 'insight' field to one or two sentences maximum\n\n"
                 f"{common_rules}"
             ),
-            expected_output="JSON with keys: trends (list of trend objects with 'title', 'direction', 'metric', 'insight'), seasonality (list with descriptive labels), growth_rates (dict of metric to rate)",
+            expected_output=(
+                "JSON with: trends (list of objects with 'title', 'direction', 'metric', 'productCategory', 'insight'), "
+                "seasonality (list of objects with 'title' and 'description'), "
+                "growth_rates (dict of readable metric name to rate)"
+            ),
             agent=agents["time_series"],
         )
 
@@ -87,10 +134,16 @@ class PatternCrew:
             description=(
                 f"Detect outliers and distribution shifts in {period} interaction data.\n\n"
                 f"Data: {interactions_summary}\n\n"
-                f"Provide descriptive titles for each anomaly (e.g., 'Unusual Spike in Product Views' not 'anomaly_1').\n\n"
+                f"Requirements:\n"
+                f"- Give each anomaly a descriptive title (e.g., 'Unexpected Spike in Cart Abandonments on Tuesday')\n"
+                f"- Include severity: high, medium, or low\n"
+                f"- Describe each anomaly in one sentence — what changed, by how much, and in which channel\n\n"
                 f"{common_rules}"
             ),
-            expected_output="JSON with keys: anomalies (list of anomaly objects with 'title', 'metric', 'value', 'severity', 'description'), distribution_shifts (list with descriptive summaries)",
+            expected_output=(
+                "JSON with: anomalies (list of objects with 'title', 'metric', 'value', 'severity', 'channel', 'description'), "
+                "distribution_shifts (list of objects with 'title' and 'summary')"
+            ),
             agent=agents["anomaly"],
         )
 
@@ -99,34 +152,56 @@ class PatternCrew:
                 f"Find cross-channel correlations and product co-interest patterns.\n\n"
                 f"Interactions: {interactions_summary}\n"
                 f"Products: {products_summary}\n\n"
-                f"Describe correlations in plain language (e.g., 'Customers who browse electronics also tend to visit the store on weekends').\n\n"
+                f"Requirements:\n"
+                f"- Describe each correlation in plain English naming the product categories involved\n"
+                f"  (e.g., 'Customers browsing Electronics also view Home Appliances in the same session')\n"
+                f"- Assign a correlation strength: strong, moderate, or weak\n"
+                f"- List product IDs only in the 'productIds' array — never in text fields\n\n"
                 f"{common_rules}"
             ),
-            expected_output="JSON with keys: correlations (list of correlation objects with 'title', 'channels', 'strength', 'insight'), product_co_interest (list with descriptive labels), productIds (list of product IDs involved)",
+            expected_output=(
+                "JSON with: correlations (list of objects with 'title', 'channels', 'productCategories', 'strength', 'insight'), "
+                "product_co_interest (list of objects with 'title' and 'description'), "
+                "productIds (list of product ID strings)"
+            ),
             agent=agents["correlation"],
         )
 
         insight_task = Task(
             description=(
-                "Synthesize the trend analysis, anomaly detection, and correlation findings into actionable business recommendations.\n\n"
-                "Structure your output as:\n"
-                "- recommendations: list of actionable items, each with a descriptive 'title' and markdown-formatted 'detail'\n"
-                "- summary: a markdown-formatted string with ## Key Patterns, ## Notable Anomalies, and ## Recommended Actions sections\n"
-                "- priority_actions: list of the top 3 most impactful actions with clear descriptions\n\n"
+                "Synthesize trend, anomaly, and correlation findings into concise, actionable recommendations.\n\n"
+                "Requirements:\n"
+                "- Each recommendation must have a descriptive 'title' tied to a product category or customer behavior\n"
+                "- 'detail' must be 1-3 bullet points in markdown — no long paragraphs\n"
+                "- 'summary' must use ## Key Patterns, ## Notable Anomalies, ## Recommended Actions sections\n"
+                "  with bullet points only — no prose paragraphs\n"
+                "- 'priority_actions' must be the 3 highest-impact actions, each naming the specific "
+                "  product category or behavior it targets\n\n"
                 f"{common_rules}"
             ),
-            expected_output="JSON with keys: recommendations (list of objects with 'title' and 'detail'), summary (markdown string), priority_actions (list of descriptive strings)",
+            expected_output=(
+                "JSON with: recommendations (list of objects with 'title', 'productCategory', and 'detail' as markdown bullets), "
+                "summary (markdown string with ## Key Patterns / ## Notable Anomalies / ## Recommended Actions), "
+                "priority_actions (list of 3 concise strings each naming a product category or behavior)"
+            ),
             agent=agents["insight"],
             context=[trend_task, anomaly_task, correlation_task],
         )
 
         confidence_task = Task(
             description=(
-                "Assess the statistical confidence and robustness of all findings from the analysis pipeline. Assign confidence scores.\n\n"
-                "For each pattern, provide a human-readable label (not an ID) and its confidence score.\n\n"
+                "Assess statistical confidence and robustness of all findings from the analysis pipeline.\n\n"
+                "Requirements:\n"
+                "- Reference each pattern by its descriptive title (never by ID or index)\n"
+                "- 'methodology_notes' must be 2-4 bullet points in markdown describing data quality\n"
+                "  and any caveats — no verbose prose\n\n"
                 f"{common_rules}"
             ),
-            expected_output="JSON with keys: overall_confidence (0-1), pattern_scores (list of objects with 'pattern_title' and 'confidence'), methodology_notes (markdown string)",
+            expected_output=(
+                "JSON with: overall_confidence (0.0–1.0), "
+                "pattern_scores (list of objects with 'pattern_title' and 'confidence'), "
+                "methodology_notes (markdown bullet list of data quality notes and caveats)"
+            ),
             agent=agents["confidence"],
             context=[trend_task, anomaly_task, correlation_task, insight_task],
         )
