@@ -64,34 +64,69 @@ class PatternCrew:
         products_summary: str,
         period: str,
     ) -> list[Task]:
+        common_rules = (
+            "CRITICAL RULES:\n"
+            "- NEVER include organization IDs, UUIDs, internal identifiers, or raw system IDs in any output\n"
+            "- Refer to the organization as 'your organization' or 'the team' instead of IDs\n"
+            "- Use human-readable, descriptive language throughout\n"
+            "- Format all insight text using markdown with proper headings (##), bullet points, and bold for emphasis\n"
+        )
+
         trend_task = Task(
-            description=f"Analyze {period} interaction data for trends, seasonality, and growth rates: {interactions_summary}",
-            expected_output="JSON with keys: trends (list of trend objects with direction and metric), seasonality (list), growth_rates (dict of metric to rate)",
+            description=(
+                f"Analyze {period} interaction data for trends, seasonality, and growth rates.\n\n"
+                f"Data: {interactions_summary}\n\n"
+                f"Generate a descriptive title for each trend (e.g., 'Rising Evening Engagement' not just 'engagement').\n\n"
+                f"{common_rules}"
+            ),
+            expected_output="JSON with keys: trends (list of trend objects with 'title', 'direction', 'metric', 'insight'), seasonality (list with descriptive labels), growth_rates (dict of metric to rate)",
             agent=agents["time_series"],
         )
 
         anomaly_task = Task(
-            description=f"Detect outliers and distribution shifts in {period} interaction data: {interactions_summary}",
-            expected_output="JSON with keys: anomalies (list of anomaly objects with metric, value, severity), distribution_shifts (list)",
+            description=(
+                f"Detect outliers and distribution shifts in {period} interaction data.\n\n"
+                f"Data: {interactions_summary}\n\n"
+                f"Provide descriptive titles for each anomaly (e.g., 'Unusual Spike in Product Views' not 'anomaly_1').\n\n"
+                f"{common_rules}"
+            ),
+            expected_output="JSON with keys: anomalies (list of anomaly objects with 'title', 'metric', 'value', 'severity', 'description'), distribution_shifts (list with descriptive summaries)",
             agent=agents["anomaly"],
         )
 
         correlation_task = Task(
-            description=f"Find cross-channel correlations and product co-interest patterns. Interactions: {interactions_summary}. Products: {products_summary}",
-            expected_output="JSON with keys: correlations (list of correlation objects with channels and strength), product_co_interest (list), productIds (list of product IDs involved)",
+            description=(
+                f"Find cross-channel correlations and product co-interest patterns.\n\n"
+                f"Interactions: {interactions_summary}\n"
+                f"Products: {products_summary}\n\n"
+                f"Describe correlations in plain language (e.g., 'Customers who browse electronics also tend to visit the store on weekends').\n\n"
+                f"{common_rules}"
+            ),
+            expected_output="JSON with keys: correlations (list of correlation objects with 'title', 'channels', 'strength', 'insight'), product_co_interest (list with descriptive labels), productIds (list of product IDs involved)",
             agent=agents["correlation"],
         )
 
         insight_task = Task(
-            description="Synthesize the trend analysis, anomaly detection, and correlation findings into actionable business recommendations",
-            expected_output="JSON with keys: recommendations (list of actionable items), summary (string), priority_actions (list)",
+            description=(
+                "Synthesize the trend analysis, anomaly detection, and correlation findings into actionable business recommendations.\n\n"
+                "Structure your output as:\n"
+                "- recommendations: list of actionable items, each with a descriptive 'title' and markdown-formatted 'detail'\n"
+                "- summary: a markdown-formatted string with ## Key Patterns, ## Notable Anomalies, and ## Recommended Actions sections\n"
+                "- priority_actions: list of the top 3 most impactful actions with clear descriptions\n\n"
+                f"{common_rules}"
+            ),
+            expected_output="JSON with keys: recommendations (list of objects with 'title' and 'detail'), summary (markdown string), priority_actions (list of descriptive strings)",
             agent=agents["insight"],
             context=[trend_task, anomaly_task, correlation_task],
         )
 
         confidence_task = Task(
-            description="Assess the statistical confidence and robustness of all findings from the analysis pipeline. Assign confidence scores.",
-            expected_output="JSON with keys: overall_confidence (0-1), pattern_scores (list of pattern with confidence), methodology_notes (string)",
+            description=(
+                "Assess the statistical confidence and robustness of all findings from the analysis pipeline. Assign confidence scores.\n\n"
+                "For each pattern, provide a human-readable label (not an ID) and its confidence score.\n\n"
+                f"{common_rules}"
+            ),
+            expected_output="JSON with keys: overall_confidence (0-1), pattern_scores (list of objects with 'pattern_title' and 'confidence'), methodology_notes (markdown string)",
             agent=agents["confidence"],
             context=[trend_task, anomaly_task, correlation_task, insight_task],
         )
