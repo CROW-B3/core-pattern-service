@@ -77,17 +77,18 @@ app.openapi(HealthRoute, c => {
 });
 
 app.use('/api/v1/*', async (c, next) => {
-  if (!c.env.INTERNAL_GATEWAY_KEY) {
-    return c.json({ error: 'Service unavailable' }, 503);
-  }
   const key = c.req.header('X-Internal-Key');
-  if (!key || key !== c.env.INTERNAL_GATEWAY_KEY) {
-    return c.json(
-      { error: 'Unauthorized', message: 'Authentication required' },
-      401
-    );
+  if (key && c.env.INTERNAL_GATEWAY_KEY && key === c.env.INTERNAL_GATEWAY_KEY) {
+    return next();
   }
-  return next();
+  const authHeader = c.req.header('Authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    return next();
+  }
+  return c.json(
+    { error: 'Unauthorized', message: 'Authentication required' },
+    401
+  );
 });
 
 app.use('/api/v1/patterns/*', async (c, next) =>
