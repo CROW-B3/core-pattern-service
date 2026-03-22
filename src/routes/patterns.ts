@@ -5,6 +5,7 @@ import {
   PatternListResponseSchema,
   PatternResultListResponseSchema,
   PatternSchema,
+  VectorSearchResponseSchema,
 } from '../types';
 
 export const GetPatternsQueryRoute = createRoute({
@@ -16,7 +17,7 @@ export const GetPatternsQueryRoute = createRoute({
       query: z.string().optional(),
       limit: z.string().optional(),
       offset: z.string().optional(),
-      period: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional(),
+      period: z.enum(['1h', 'daily', 'weekly', 'monthly', 'yearly']).optional(),
     }),
   },
   responses: {
@@ -83,7 +84,7 @@ export const GetPatternsRoute = createRoute({
       query: z.string().optional(),
       limit: z.string().optional(),
       offset: z.string().optional(),
-      period: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional(),
+      period: z.enum(['1h', 'daily', 'weekly', 'monthly', 'yearly']).optional(),
     }),
   },
   responses: {
@@ -153,6 +154,28 @@ export const DeletePatternRoute = createRoute({
     404: {
       content: { 'application/json': { schema: ErrorSchema } },
       description: 'Pattern not found',
+    },
+  },
+});
+
+export const SearchPatternsRoute = createRoute({
+  method: 'get',
+  path: '/api/v1/patterns/organization/:orgId/search',
+  request: {
+    params: z.object({ orgId: z.string() }),
+    query: z.object({
+      q: z.string().min(1),
+      topK: z.string().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: VectorSearchResponseSchema } },
+      description: 'Semantic search results for patterns',
+    },
+    403: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Forbidden',
     },
   },
 });

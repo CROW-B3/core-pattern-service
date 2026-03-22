@@ -13,7 +13,34 @@ import {
   GetPatternsQueryRoute,
   GetPatternsRoute,
   HealthRoute,
+  SearchPatternsRoute,
 } from './routes/patterns';
+
+const vectorizePattern = async (
+  env: Environment,
+  patternId: string,
+  organizationId: string,
+  type: string,
+  description: string,
+  insights: string
+) => {
+  try {
+    const textToEmbed = `${description} ${insights} ${type}`;
+    const embeddingResponse = (await env.AI.run('@cf/baai/bge-m3', {
+      text: [textToEmbed],
+    })) as { data: number[][] };
+    const values = embeddingResponse.data[0];
+    await env.VECTORIZE.upsert([
+      {
+        id: patternId,
+        values,
+        metadata: { organizationId, type, description, insights },
+      },
+    ]);
+  } catch (err) {
+    console.error('Vectorize upsert failed:', err);
+  }
+};
 
 const app = new OpenAPIHono<{ Bindings: Environment }>({
   defaultHook: (result, c) => {
@@ -50,17 +77,18 @@ app.openapi(HealthRoute, c => {
 });
 
 app.use('/api/v1/*', async (c, next) => {
-  if (!c.env.INTERNAL_GATEWAY_KEY) {
-    return c.json({ error: 'Service unavailable' }, 503);
-  }
   const key = c.req.header('X-Internal-Key');
-  if (!key || key !== c.env.INTERNAL_GATEWAY_KEY) {
-    return c.json(
-      { error: 'Unauthorized', message: 'Authentication required' },
-      401
-    );
+  if (key && c.env.INTERNAL_GATEWAY_KEY && key === c.env.INTERNAL_GATEWAY_KEY) {
+    return next();
   }
-  return next();
+  const authHeader = c.req.header('Authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    return next();
+  }
+  return c.json(
+    { error: 'Unauthorized', message: 'Authentication required' },
+    401
+  );
 });
 
 app.use('/api/v1/patterns/*', async (c, next) =>
@@ -198,6 +226,15 @@ app.openapi(DetectPatternsRoute, async c => {
     detectedAt: now,
     createdAt: now,
   });
+
+  await vectorizePattern(
+    c.env,
+    patternId,
+    organizationId,
+    type,
+    type,
+    insights
+  );
 
   return c.json({ patternId, type, confidence, insights }, 200);
 });
@@ -359,6 +396,8 @@ app.openapi(AnalyzeRoute, async c => {
     createdAt: now,
   });
 
+  await vectorizePattern(c.env, patternId, orgId, type, type, insights);
+
   return c.json({ patternId, type, confidence, insights }, 200);
 });
 
@@ -387,6 +426,37 @@ app.openapi(DeletePatternRoute, async c => {
   await db.delete(schema.patterns).where(eq(schema.patterns.id, patternId));
 
   return c.json({ success: true }, 200);
+});
+
+app.openapi(SearchPatternsRoute, async c => {
+  const callerOrgId = c.req.header('X-Organization-Id');
+  const orgId = c.req.param('orgId');
+  if (!callerOrgId || callerOrgId !== orgId) {
+    return c.json(
+      { error: 'Forbidden', message: 'Access denied to this organization' },
+      403
+    ) as never;
+  }
+
+  const { q, topK } = c.req.valid('query');
+  const limit = topK ? Number.parseInt(topK, 10) : 10;
+
+  const queryEmbedding = (await c.env.AI.run('@cf/baai/bge-m3', {
+    text: [q],
+  })) as { data: number[][] };
+  const vectorResults = await c.env.VECTORIZE.query(queryEmbedding.data[0], {
+    topK: limit,
+    filter: { organizationId: orgId },
+    returnMetadata: 'all',
+  });
+
+  const results = vectorResults.matches.map(match => ({
+    id: match.id,
+    score: match.score,
+    metadata: match.metadata ?? {},
+  }));
+
+  return c.json({ results, query: q }, 200);
 });
 
 app.doc('/docs', {
