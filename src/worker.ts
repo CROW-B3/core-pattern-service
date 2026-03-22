@@ -13,11 +13,17 @@ export class PatternAnalyzerContainer extends Container {
 
 async function fetchOrganizationIds(
   apiGatewayUrl: string,
-  systemSecret: string
+  systemSecret: string,
+  internalGatewayKey?: string
 ): Promise<string[]> {
   try {
+    const headers: Record<string, string> = {};
+    if (internalGatewayKey) {
+      headers['X-Internal-Key'] = internalGatewayKey;
+    }
+    headers['X-System-Token'] = systemSecret;
     const res = await fetch(`${apiGatewayUrl}/api/v1/organizations`, {
-      headers: { 'X-System-Token': systemSecret },
+      headers,
     });
     if (!res.ok) return [];
     const data = (await res.json()) as { organizations: Array<{ id: string }> };
@@ -31,13 +37,20 @@ async function fetchRecentInteractions(
   apiGatewayUrl: string,
   systemSecret: string,
   orgId: string,
-  sinceMs: number
+  sinceMs: number,
+  internalGatewayKey?: string
 ): Promise<object[]> {
   try {
     const since = new Date(sinceMs).toISOString();
+    const headers: Record<string, string> = {};
+    if (internalGatewayKey) {
+      headers['X-Internal-Key'] = internalGatewayKey;
+      headers['X-Organization-Id'] = orgId;
+    }
+    headers['X-System-Token'] = systemSecret;
     const res = await fetch(
       `${apiGatewayUrl}/api/v1/interactions/organization/${orgId}?limit=500&since=${since}`,
-      { headers: { 'X-System-Token': systemSecret } }
+      { headers }
     );
     if (!res.ok) return [];
     const data = (await res.json()) as { interactions?: object[] };
@@ -196,7 +209,8 @@ export default {
     const period = cronPeriodMap[event.cron] ?? 'daily';
     const orgIds = await fetchOrganizationIds(
       env.API_GATEWAY_URL,
-      env.SYSTEM_SECRET
+      env.SYSTEM_SECRET,
+      env.INTERNAL_GATEWAY_KEY
     );
     const db = drizzle(env.DB, { schema });
 
@@ -212,7 +226,8 @@ export default {
             env.API_GATEWAY_URL,
             env.SYSTEM_SECRET,
             orgId,
-            oneHourAgo
+            oneHourAgo,
+            env.INTERNAL_GATEWAY_KEY
           );
           if (interactions.length === 0) continue;
           await triggerHourlyAnalysis(
