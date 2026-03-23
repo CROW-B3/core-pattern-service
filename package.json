@@ -37,7 +37,7 @@
     "drizzle-kit": "^0.31.8",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
-    "prettier": "^3.7.4",
+    "prettier": "^3.8.1",
     "vitest": "^4.1.0",
     "wrangler": "^4.67.0"
   },
