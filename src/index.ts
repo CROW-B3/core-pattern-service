@@ -91,9 +91,13 @@ app.use('/api/v1/*', async (c, next) => {
   );
 });
 
-app.use('/api/v1/patterns/*', async (c, next) =>
-  createJWTMiddleware(c.env)(c, next)
-);
+app.use('/api/v1/patterns/*', async (c, next) => {
+  const internalKey = c.req.header('X-Internal-Key');
+  if (internalKey && c.env.INTERNAL_GATEWAY_KEY && internalKey === c.env.INTERNAL_GATEWAY_KEY) {
+    return next();
+  }
+  return createJWTMiddleware(c.env)(c, next);
+});
 
 app.openapi(GetPatternsQueryRoute, async c => {
   const callerOrgId = c.req.header('X-Organization-Id');
