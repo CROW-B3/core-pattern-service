@@ -4,115 +4,11 @@
   "account_id": "8f0203259905d8923687286c84921e6c",
   "main": "src/worker.ts",
   "compatibility_date": "2025-12-17",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1,
-  },
-  "ai": {
-    "binding": "AI"
-  },
-  "containers": [
-    {
-      "class_name": "PatternAnalyzerContainer",
-      "image": "./Dockerfile",
-      "max_instances": 2
-    }
-  ],
-  "durable_objects": {
-    "bindings": [
-      { "class_name": "PatternAnalyzerContainer", "name": "PATTERN_CONTAINER" }
-    ]
-  },
-  "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["PatternAnalyzerContainer"] }
-  ],
-  "triggers": {
-    "crons": ["0 * * * *", "0 2 * * *", "0 3 * * 1", "0 4 1 * *", "0 5 1 1 *"]
-  },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "crow-core-pattern-service-db",
-      "database_id": "372a8110-1d3a-44cf-9727-2b25d124fbc1",
-      "migrations_dir": "drizzle/migrations"
-    }
-  ],
-  "vectorize": [
-    {
-      "binding": "VECTORIZE",
-      "index_name": "crow-patterns"
-    }
-  ],
-  "vars": {
-    "ENVIRONMENT": "prod",
-    "API_GATEWAY_URL": "https://api.crowai.dev",
-    "AI_GATEWAY_ID": "crow-ai-gateway"
-  },
-  "routes": [
-    { "pattern": "patterns.crowai.dev", "custom_domain": true }
-  ],
-  "env": {
-    "dev": {
-      "vars": {
-        "ENVIRONMENT": "dev",
-        "API_GATEWAY_URL": "https://dev.api.crowai.dev",
-        "AUTH_SERVICE_URL": "https://dev.internal.auth-api.crowai.dev",
-        "AI_GATEWAY_ID": "crow-ai-gateway",
-        // SYSTEM_SECRET: set via `wrangler secret put SYSTEM_SECRET --env dev`
-      },
-      "ai": {
-        "binding": "AI"
-      },
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_name": "crow-core-pattern-service-db-dev",
-          "database_id": "ae277dc8-0f1d-4806-a503-791f7246d147",
-          "migrations_dir": "drizzle/migrations"
-        }
-      ],
-      "r2_buckets": [
-        {
-          "binding": "R2_BUCKET",
-          "bucket_name": "crow-core-pattern-service-store-dev"
-        }
-      ],
-      "routes": [
-        { "pattern": "dev.patterns.crowai.dev", "custom_domain": true },
-        { "pattern": "dev.internal.patterns.crowai.dev", "custom_domain": true }
-      ],
-      "vectorize": [
-        {
-          "binding": "VECTORIZE",
-          "index_name": "crow-patterns-dev"
-        },
-        {
-          "binding": "PRODUCT_VECTORIZE",
-          "index_name": "crow-product-index-dev",
-          "dimensions": 1024,
-          "metric": "cosine"
-        },
-        {
-          "binding": "QNA_VECTORIZE",
-          "index_name": "crow-qna-index-dev",
-          "dimensions": 1024,
-          "metric": "cosine"
-        }
-      ],
-      "durable_objects": {
-        "bindings": [
-          { "class_name": "PatternAnalyzerContainer", "name": "PATTERN_CONTAINER" }
-        ]
-      },
-      "containers": [
-        {
-          "class_name": "PatternAnalyzerContainer",
-          "name": "pattern-container",
-          "image": "./Dockerfile",
-          "max_instances": 2
-        }
-      ]
-    }
+    "head_sampling_rate": 1
   }
 }
